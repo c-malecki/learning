@@ -3,10 +3,10 @@ package list
 import "fmt"
 
 type Node[T any] struct {
-	Data T
-	next *Node[T]
-	prev *Node[T]
-	list *LinkedList[T]
+	Value T
+	next  *Node[T]
+	prev  *Node[T]
+	list  *LinkedList[T]
 }
 
 func (n *Node[T]) Next() *Node[T] {
@@ -29,10 +29,36 @@ func (n *Node[T]) Prev() *Node[T] {
 func (n *Node[T]) Print() {
 	var next, prev T
 	if n.next != nil {
-		next = n.next.Data
+		next = n.next.Value
 	}
 	if n.prev != nil {
-		prev = n.prev.Data
+		prev = n.prev.Value
 	}
-	fmt.Printf("NODE: Data %v next %v prev %v\n\n", n.Data, next, prev)
+	fmt.Printf("NODE: Value %v next %v prev %v\n", n.Value, next, prev)
+}
+
+type ExtractFn[T any, E comparable] func(node *Node[T]) E
+
+func FindNodeByValue[T any, E comparable](l *LinkedList[T], target E, fn ExtractFn[T, E]) *Node[T] {
+	if l.head == nil {
+		return nil
+	}
+
+	if fn(l.head) == target {
+		return l.head
+	}
+
+	if l.double && fn(l.tail) == target {
+		return l.tail
+	}
+
+	cur := l.head
+	for cur.next != nil && cur.next != l.head {
+		cur = cur.next
+		if fn(cur) == target {
+			return cur
+		}
+	}
+
+	return nil
 }

@@ -18,11 +18,15 @@ func New[T any]() *LinkedList[T] {
 }
 
 func (l *LinkedList[T]) Print() {
-	fmt.Printf("LIST: head %+v tail %+v len %v double %v circular %v\n\n", l.head, l.tail, l.len, l.double, l.circular)
+	var head, tail *T
+	if l.head != nil {
+		head = &l.head.Value
+	}
+	if l.tail != nil {
+		tail = &l.tail.Value
+	}
+	fmt.Printf("LIST: head %+v tail %+v len %v double %v circular %v\n\n", head, tail, l.len, l.double, l.circular)
 }
-
-// insert (after,before)
-// move (after,before,front,back), sort
 
 // resets list to singly linked list
 func (l *LinkedList[T]) Reset() *LinkedList[T] {
@@ -135,12 +139,14 @@ func (l *LinkedList[T]) MakeLinear() *LinkedList[T] {
 	return l
 }
 
-func (l *LinkedList[T]) InsertBack(data T) *Node[T] {
-	node := &Node[T]{
-		Data: data,
-		list: l,
-	}
+func (l *LinkedList[T]) AppendValue(value T) *Node[T] {
+	return l.Append(&Node[T]{
+		Value: value,
+		list:  l,
+	})
+}
 
+func (l *LinkedList[T]) Append(node *Node[T]) *Node[T] {
 	if l.circular {
 		return l.insertBackCircular(node)
 	}
@@ -206,37 +212,18 @@ func (l *LinkedList[T]) insertBackCircular(node *Node[T]) *Node[T] {
 	return node
 }
 
-func (l *LinkedList[T]) InsertFront(data T) *Node[T] {
-	node := &Node[T]{
-		Data: data,
-		next: l.head,
-		list: l,
-	}
+func (l *LinkedList[T]) PrependValue(value T) *Node[T] {
+	return l.Prepend(&Node[T]{
+		Value: value,
+		list:  l,
+	})
+}
 
+func (l *LinkedList[T]) Prepend(node *Node[T]) *Node[T] {
 	if l.circular {
 		return l.insertFrontCircular(node)
 	}
 	return l.insertFrontLinear(node)
-}
-
-func (l *LinkedList[T]) insertFrontLinear(node *Node[T]) *Node[T] {
-	if l.head == nil {
-		l.head = node
-		l.len += 1
-		return node
-	}
-
-	old := l.head
-	l.head = node
-	node.next = old
-
-	if l.double {
-		old.prev = l.head
-	}
-
-	l.len += 1
-
-	return node
 }
 
 func (l *LinkedList[T]) insertFrontCircular(node *Node[T]) *Node[T] {
@@ -248,12 +235,12 @@ func (l *LinkedList[T]) insertFrontCircular(node *Node[T]) *Node[T] {
 		return node
 	}
 
-	old := l.head
-	node.next = old
+	move := l.head
+	node.next = move
 	l.head = node
 
 	if l.double {
-		old.prev = l.head
+		move.prev = l.head
 		l.head.prev = l.tail
 		l.tail.next = l.head
 	}
@@ -263,28 +250,47 @@ func (l *LinkedList[T]) insertFrontCircular(node *Node[T]) *Node[T] {
 	return node
 }
 
-type ExtractFn[T any, E comparable] func(node *Node[T]) E
+func (l *LinkedList[T]) insertFrontLinear(node *Node[T]) *Node[T] {
+	if l.head == nil {
+		l.head = node
+		l.len += 1
+		return node
+	}
 
-func Remove[T any, E comparable](l *LinkedList[T], data E, fn ExtractFn[T, E]) {
+	move := l.head
+	l.head = node
+	node.next = move
+
 	if l.double {
-		removeDoubly(l, data, fn)
+		move.prev = l.head
+	}
+
+	l.len += 1
+
+	return node
+}
+
+func (l *LinkedList[T]) Remove(node *Node[T]) {
+	if l.double {
+		l.removeDoublyNode(node)
 	} else {
-		removeSingly(l, data, fn)
+		l.removeSinglyNode(node)
 	}
 }
 
-func removeSingly[T any, E comparable](l *LinkedList[T], data E, fn ExtractFn[T, E]) {
-	if l.head == nil {
-		return
-	}
+func (l *LinkedList[T]) removeSinglyNode(node *Node[T]) {
+	if l.head == node {
+		if l.len == 1 {
+			l.head = nil
+			l.len = 0
+			return
+		}
 
-	if fn(l.head) == data {
-		old := l.head
-		l.head = l.head.next
+		l.head = node.next
 		if l.circular {
 			cur := l.head
 			for cur.next != nil {
-				if cur.next == old {
+				if cur.next == node {
 					cur.next = l.head
 					break
 				}
@@ -297,8 +303,8 @@ func removeSingly[T any, E comparable](l *LinkedList[T], data E, fn ExtractFn[T,
 
 	cur := l.head
 	for cur.next != nil {
-		if fn(cur.next) == data {
-			cur.next = cur.next.next
+		if cur.next == node {
+			cur.next = node.next
 			l.len -= 1
 			break
 		}
@@ -306,13 +312,16 @@ func removeSingly[T any, E comparable](l *LinkedList[T], data E, fn ExtractFn[T,
 	}
 }
 
-func removeDoubly[T any, E comparable](l *LinkedList[T], data E, fn ExtractFn[T, E]) {
-	if l.head == nil {
-		return
-	}
+func (l *LinkedList[T]) removeDoublyNode(node *Node[T]) {
+	if l.head == node {
+		if l.len == 1 {
+			l.head = nil
+			l.tail = nil
+			l.len = 0
+			return
+		}
 
-	if fn(l.head) == data {
-		l.head = l.head.next
+		l.head = node.next
 		if l.circular {
 			l.head.prev = l.tail
 			l.tail.next = l.head
@@ -323,36 +332,67 @@ func removeDoubly[T any, E comparable](l *LinkedList[T], data E, fn ExtractFn[T,
 		return
 	}
 
+	if l.tail == node {
+		l.tail = node.prev
+		if l.circular {
+			l.head.prev = l.tail
+			l.tail.next = l.head
+		} else {
+			l.tail.next = nil
+		}
+		l.len -= 1
+		return
+	}
+
 	cur := l.head
 	for cur.next != nil {
-		if fn(cur.next) == data {
-			cur.next = cur.next.next
+		if cur.next == node {
+			cur.next = node.next
 			cur.next.prev = cur
 			l.len -= 1
-			break
+			return
 		}
 		cur = cur.next
 	}
 }
 
-func InsertBefore[T any, E comparable](l *LinkedList[T], data T, target E, fn ExtractFn[T, E]) *Node[T] {
-	node := &Node[T]{
-		Data: data,
-		list: l,
+func (l *LinkedList[T]) MoveToFront(node *Node[T]) {
+	if node == nil || l.head == nil || l.head == node {
+		return
+	}
+	l.Remove(node)
+	l.Prepend(node)
+}
+
+func (l *LinkedList[T]) MoveToBack(node *Node[T]) {
+	if node == nil || l.head == nil || (l.double && l.tail == node) {
+		return
+	}
+	l.Remove(node)
+	l.Append(node)
+}
+
+func (l *LinkedList[T]) InsertBefore(value T, target *Node[T]) *Node[T] {
+	if target == nil {
+		return nil
 	}
 
-	if fn(l.head) == target {
-		return l.InsertFront(data)
+	node := &Node[T]{
+		Value: value,
+		list:  l,
+	}
+
+	if l.head == target {
+		return l.Prepend(node)
 	}
 
 	cur := l.head
 	for cur.next != nil {
-		if fn(cur.next) == target {
-			move := cur.next
+		if cur.next == target {
 			cur.next = node
-			node.next = move
-			if l.double && move != nil {
-				move.prev = node
+			node.next = target
+			if l.double {
+				target.prev = node
 				node.prev = cur
 			}
 			l.len += 1
@@ -364,13 +404,17 @@ func InsertBefore[T any, E comparable](l *LinkedList[T], data T, target E, fn Ex
 	return nil
 }
 
-func InsertAfter[T any, E comparable](l *LinkedList[T], data T, target E, fn ExtractFn[T, E]) *Node[T] {
-	node := &Node[T]{
-		Data: data,
-		list: l,
+func (l *LinkedList[T]) InsertAfter(value T, target *Node[T]) *Node[T] {
+	if target == nil {
+		return nil
 	}
 
-	if fn(l.head) == target {
+	node := &Node[T]{
+		Value: value,
+		list:  l,
+	}
+
+	if l.head == target {
 		move := l.head.next
 		l.head.next = node
 		node.next = move
@@ -381,19 +425,18 @@ func InsertAfter[T any, E comparable](l *LinkedList[T], data T, target E, fn Ext
 		return node
 	}
 
-	if l.double && fn(l.tail) == target {
-		return l.InsertBack(data)
+	if l.double && l.tail == target {
+		return l.Append(node)
 	}
 
 	cur := l.head
 	for cur.next != nil {
 		cur = cur.next
-		if fn(cur) == target {
-			move := cur.next
+		if cur == target {
 			cur.next = node
-			node.next = move
-			if l.double && move != nil {
-				move.prev = node
+			node.next = target
+			if l.double {
+				target.prev = node
 				node.prev = cur
 			}
 			l.len += 1
@@ -404,108 +447,8 @@ func InsertAfter[T any, E comparable](l *LinkedList[T], data T, target E, fn Ext
 	return nil
 }
 
-func MoveBefore[T any, E comparable](l *LinkedList[T], node *Node[T], target E, fn ExtractFn[T, E]) *LinkedList[T] {
-
-	return l
-}
-
-func MoveAfter[T any, E comparable](l *LinkedList[T], node *Node[T], target E, fn ExtractFn[T, E]) *LinkedList[T] {
-
-	return l
-}
-
-func FindNode[T any, E comparable](l *LinkedList[T], target E, fn ExtractFn[T, E]) *Node[T] {
-	if l.head == nil {
-		return nil
-	}
-
-	if fn(l.head) == target {
-		return l.head
-	}
-
-	if l.double && fn(l.tail) == target {
-		return l.tail
-	}
-
-	cur := l.head
-	for cur.next != nil && cur.next != l.head {
-		cur = cur.next
-		if fn(cur) == target {
-			return cur
-		}
-	}
-
-	return nil
-}
-
-func MoveFront[T any, E comparable](l *LinkedList[T], target E, fn ExtractFn[T, E]) {
-	if l.head == nil {
-		return
-	}
-
-	node := FindNode(l, target, fn)
-	if node == nil {
-		return
-	}
-
-	if node == l.head {
-		return
-	}
-
-	old := l.head
-	l.head = node
-	node.next = old
-
-	if l.double {
-		old.prev = l.head
-		if l.circular {
-			l.head.prev = l.tail
-		}
-	}
-}
-
-func MoveBack[T any, E comparable](l *LinkedList[T], target E, fn ExtractFn[T, E]) {
-	if l.head == nil {
-		return
-	}
-
-	node := FindNode(l, target, fn)
-	if node == nil {
-		return
-	}
-
-	if l.double {
-		if l.tail == node {
-			return
-		}
-
-		old := l.tail
-		l.tail = node
-		node.prev = old
-		old.next = l.tail
-		if l.circular {
-			l.tail.next = l.head
-		}
-		return
-	}
-
-	cur := l.head
-	for cur.next != nil {
-		if cur.next == l.head {
-			break
-		}
-		cur = cur.next
-	}
-	cur.next = node
-	if l.circular {
-		node.next = l.head
-	} else {
-		node.next = nil
-	}
-}
-
 func (l *LinkedList[T]) PrintNodeForward() {
-	fmt.Print("PRINT NODES FORWARD\n")
+	fmt.Print("=== PrintNodeForward ===\n")
 	cur := l.head
 	for cur != nil {
 		cur.Print()
@@ -517,7 +460,7 @@ func (l *LinkedList[T]) PrintNodeForward() {
 }
 
 func (l *LinkedList[T]) PrintNodeReverse() {
-	fmt.Print("PRINT NODES REVERSE\n")
+	fmt.Print("=== PrintNodeReverse ===\n")
 	if !l.double {
 		fmt.Print("list is not doubly linked\n\n")
 		return
@@ -531,6 +474,214 @@ func (l *LinkedList[T]) PrintNodeReverse() {
 		}
 	}
 }
+
+// func InsertBeforeValue[T any, E comparable](l *LinkedList[T], value T, target E, fn ExtractFn[T, E]) *Node[T] {
+// 	node := &Node[T]{
+// 		Value: value,
+// 		list:  l,
+// 	}
+
+// 	if fn(l.head) == target {
+// 		return l.Prepend(value)
+// 	}
+
+// 	cur := l.head
+// 	for cur.next != nil {
+// 		if fn(cur.next) == target {
+// 			move := cur.next
+// 			cur.next = node
+// 			node.next = move
+// 			if l.double && move != nil {
+// 				move.prev = node
+// 				node.prev = cur
+// 			}
+// 			l.len += 1
+// 			return node
+// 		}
+// 		cur = cur.next
+// 	}
+
+// 	return nil
+// }
+
+// func InsertAfterValue[T any, E comparable](l *LinkedList[T], value T, target E, fn ExtractFn[T, E]) *Node[T] {
+// 	node := &Node[T]{
+// 		Value: value,
+// 		list:  l,
+// 	}
+
+// 	if fn(l.head) == target {
+// 		move := l.head.next
+// 		l.head.next = node
+// 		node.next = move
+// 		if l.double && move != nil {
+// 			move.prev = node
+// 		}
+// 		l.len += 1
+// 		return node
+// 	}
+
+// 	if l.double && fn(l.tail) == target {
+// 		return l.Append(value)
+// 	}
+
+// 	cur := l.head
+// 	for cur.next != nil {
+// 		cur = cur.next
+// 		if fn(cur) == target {
+// 			move := cur.next
+// 			cur.next = node
+// 			node.next = move
+// 			if l.double && move != nil {
+// 				move.prev = node
+// 				node.prev = cur
+// 			}
+// 			l.len += 1
+// 			return node
+// 		}
+// 	}
+
+// 	return nil
+// }
+
+// func MoveToFrontByValue[T any, E comparable](l *LinkedList[T], target E, fn ExtractFn[T, E]) {
+// 	if l.head == nil {
+// 		return
+// 	}
+
+// 	node := FindNodeByValue(l, target, fn)
+// 	if node == nil {
+// 		return
+// 	}
+
+// 	if node == l.head {
+// 		return
+// 	}
+
+// 	old := l.head
+// 	l.head = node
+// 	node.next = old
+
+// 	if l.double {
+// 		old.prev = l.head
+// 		if l.circular {
+// 			l.head.prev = l.tail
+// 		}
+// 	}
+// }
+
+// func MoveToBackByValue[T any, E comparable](l *LinkedList[T], target E, fn ExtractFn[T, E]) {
+// 	if l.head == nil {
+// 		return
+// 	}
+
+// 	node := FindNodeByValue(l, target, fn)
+// 	if node == nil {
+// 		return
+// 	}
+
+// 	if l.double {
+// 		if l.tail == node {
+// 			return
+// 		}
+
+// 		old := l.tail
+// 		l.tail = node
+// 		node.prev = old
+// 		old.next = l.tail
+// 		if l.circular {
+// 			l.tail.next = l.head
+// 		}
+// 		return
+// 	}
+
+// 	cur := l.head
+// 	for cur.next != nil {
+// 		if cur.next == l.head {
+// 			break
+// 		}
+// 		cur = cur.next
+// 	}
+// 	cur.next = node
+// 	if l.circular {
+// 		node.next = l.head
+// 	} else {
+// 		node.next = nil
+// 	}
+// }
+
+// func MoveBeforeValue[T any, E comparable](l *LinkedList[T], node *Node[T], target E, fn ExtractFn[T, E]) *LinkedList[T] {
+
+// 	return l
+// }
+
+// func MoveAfterValue[T any, E comparable](l *LinkedList[T], node *Node[T], target E, fn ExtractFn[T, E]) *LinkedList[T] {
+
+// 	return l
+// }
+
+// func (l *LinkedList[T]) RemoveNode(node *Node[T]) {
+// 	if l.head == nil {
+// 		return
+// 	}
+
+// 	switch node {
+// 	case nil:
+// 		return
+// 	case l.head:
+// 		println("HEAD")
+// 		l.head = node.next
+// 		l.len -= 1
+
+// 		if l.len == 0 {
+// 			l.head = nil
+// 			l.tail = nil
+// 			return
+// 		}
+
+// 		if !l.double && l.circular {
+
+// 		}
+
+// 		if l.double && l.circular {
+// 			l.head.prev = l.tail
+// 			l.tail.next = l.head
+// 		}
+
+// 	case l.tail:
+// 		println("TAIL")
+// 		l.tail = node.prev
+// 		l.len -= 1
+
+// 		if l.len == 0 {
+// 			l.head = nil
+// 			l.tail = nil
+// 			return
+// 		}
+
+// 		if l.circular {
+// 			l.head.prev = l.tail
+// 			l.tail.next = l.head
+// 		}
+
+// 	default:
+// 		println("MIDDLE")
+// 		cur := l.head
+// 		for cur.next != nil {
+// 			if cur.next == node {
+// 				cur.next = node.next
+// 				l.len -= 1
+
+// 				if l.double {
+// 					cur.next.prev = cur
+// 				}
+
+// 				return
+// 			}
+// 			cur = cur.next
+// 		}
+// 	}
+// }
 
 // func ArrToSLL[T any](arr []T) *SLL[T] {
 // 	var head, tail *Node[T]
