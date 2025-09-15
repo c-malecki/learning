@@ -13,7 +13,7 @@ type LinkedList[T any] struct {
 // initialized as a singly linked list
 func New[T any]() *LinkedList[T] {
 	list := &LinkedList[T]{}
-	list.Reset()
+	list.Init()
 	return list
 }
 
@@ -29,7 +29,7 @@ func (l *LinkedList[T]) Print() {
 }
 
 // resets list to singly linked list
-func (l *LinkedList[T]) Reset() *LinkedList[T] {
+func (l *LinkedList[T]) Init() *LinkedList[T] {
 	l.head = nil
 	l.tail = nil
 	l.double = false
@@ -38,9 +38,9 @@ func (l *LinkedList[T]) Reset() *LinkedList[T] {
 	return l
 }
 
-// makes a singly linked list doubly linked and accounts for circular
+// makes a linked list doubly linked
 func (l *LinkedList[T]) MakeDoubly() *LinkedList[T] {
-	if l.double {
+	if l.double || l.head == nil {
 		return l
 	}
 
@@ -66,25 +66,21 @@ func (l *LinkedList[T]) MakeDoubly() *LinkedList[T] {
 	return l
 }
 
-// makes a doubly linked list singly
+// makes a linked list singly linked
 func (l *LinkedList[T]) MakeSingly() *LinkedList[T] {
-	if !l.double {
+	if !l.double || l.head == nil {
 		return l
 	}
 
-	prev := l.head
 	cur := l.head
-	for cur.prev != nil {
-		if cur.prev == l.head {
-			cur.prev = nil
+	for cur.next != nil {
+		cur.prev = nil
+		if cur.next == l.head {
 			break
 		}
-		cur = cur.prev
-		prev.prev = nil
-		prev = cur
+		cur = cur.next
 	}
-
-	l.tail = nil
+	l.tail.prev = nil
 	l.double = false
 
 	return l
@@ -139,6 +135,18 @@ func (l *LinkedList[T]) MakeLinear() *LinkedList[T] {
 	return l
 }
 
+func (l *LinkedList[T]) Front() *Node[T] {
+	return l.head
+}
+
+func (l *LinkedList[T]) Back() *Node[T] {
+	return l.tail
+}
+
+func (l *LinkedList[T]) Size() int {
+	return l.len
+}
+
 func (l *LinkedList[T]) AppendValue(value T) *Node[T] {
 	return l.Append(&Node[T]{
 		Value: value,
@@ -147,64 +155,35 @@ func (l *LinkedList[T]) AppendValue(value T) *Node[T] {
 }
 
 func (l *LinkedList[T]) Append(node *Node[T]) *Node[T] {
+	if l.head == nil {
+		l.head = node
+		l.tail = node
+		if l.circular {
+			l.head.next = l.head
+			if l.double {
+				l.head.prev = l.tail
+			}
+		}
+		l.len += 1
+		return node
+	}
+
+	move := l.tail
+	l.tail = node
+	move.next = l.tail
 	if l.circular {
-		return l.insertBackCircular(node)
-	}
-	return l.insertBackLinear(node)
-}
-
-func (l *LinkedList[T]) insertBackLinear(node *Node[T]) *Node[T] {
-	if l.head == nil {
-		l.head = node
-		l.len += 1
-		return node
-	}
-
-	cur := l.head
-	for cur.next != nil {
-		cur = cur.next
-	}
-	cur.next = node
-
-	if l.double {
-		node.prev = cur
-		l.tail = node
-	}
-
-	l.len += 1
-
-	return node
-}
-
-func (l *LinkedList[T]) insertBackCircular(node *Node[T]) *Node[T] {
-	if l.head == nil {
-		l.head = node
-		l.head.next = l.head
-		if l.double {
-			l.head.prev = l.head
-		}
-		l.len += 1
-		return node
-	}
-
-	cur := l.head
-	for cur.next != nil {
-		if cur.next == l.head {
-			break
-		}
-		cur = cur.next
-	}
-	cur.next = node
-
-	if l.double {
-		node.prev = cur
-		l.tail = node
-		l.head.prev = l.tail
 		l.tail.next = l.head
+	} else {
+		l.tail.next = nil
 	}
 
-	if !l.double {
-		node.next = l.head
+	if l.double {
+		l.tail.prev = move
+		if l.circular {
+			l.head.prev = l.tail
+		} else {
+			l.head.prev = nil
+		}
 	}
 
 	l.len += 1
@@ -220,49 +199,33 @@ func (l *LinkedList[T]) PrependValue(value T) *Node[T] {
 }
 
 func (l *LinkedList[T]) Prepend(node *Node[T]) *Node[T] {
-	if l.circular {
-		return l.insertFrontCircular(node)
-	}
-	return l.insertFrontLinear(node)
-}
-
-func (l *LinkedList[T]) insertFrontCircular(node *Node[T]) *Node[T] {
 	if l.head == nil {
 		l.head = node
-		l.head.next = l.head
-		l.head.prev = l.head
+		l.tail = node
+		if l.circular {
+			l.head.next = l.head
+			if l.double {
+				l.head.prev = l.tail
+			}
+		}
 		l.len += 1
 		return node
 	}
 
 	move := l.head
-	node.next = move
 	l.head = node
-
-	if l.double {
-		move.prev = l.head
-		l.head.prev = l.tail
+	l.head.next = move
+	if l.circular {
 		l.tail.next = l.head
 	}
 
-	l.len += 1
-
-	return node
-}
-
-func (l *LinkedList[T]) insertFrontLinear(node *Node[T]) *Node[T] {
-	if l.head == nil {
-		l.head = node
-		l.len += 1
-		return node
-	}
-
-	move := l.head
-	l.head = node
-	node.next = move
-
 	if l.double {
 		move.prev = l.head
+		if l.circular {
+			l.head.prev = l.tail
+		} else {
+			l.head.prev = nil
+		}
 	}
 
 	l.len += 1
@@ -271,48 +234,6 @@ func (l *LinkedList[T]) insertFrontLinear(node *Node[T]) *Node[T] {
 }
 
 func (l *LinkedList[T]) Remove(node *Node[T]) {
-	if l.double {
-		l.removeDoublyNode(node)
-	} else {
-		l.removeSinglyNode(node)
-	}
-}
-
-func (l *LinkedList[T]) removeSinglyNode(node *Node[T]) {
-	if l.head == node {
-		if l.len == 1 {
-			l.head = nil
-			l.len = 0
-			return
-		}
-
-		l.head = node.next
-		if l.circular {
-			cur := l.head
-			for cur.next != nil {
-				if cur.next == node {
-					cur.next = l.head
-					break
-				}
-				cur = cur.next
-			}
-		}
-		l.len -= 1
-		return
-	}
-
-	cur := l.head
-	for cur.next != nil {
-		if cur.next == node {
-			cur.next = node.next
-			l.len -= 1
-			break
-		}
-		cur = cur.next
-	}
-}
-
-func (l *LinkedList[T]) removeDoublyNode(node *Node[T]) {
 	if l.head == node {
 		if l.len == 1 {
 			l.head = nil
@@ -323,23 +244,13 @@ func (l *LinkedList[T]) removeDoublyNode(node *Node[T]) {
 
 		l.head = node.next
 		if l.circular {
-			l.head.prev = l.tail
 			l.tail.next = l.head
-		} else {
-			l.head.prev = nil
 		}
-		l.len -= 1
-		return
-	}
 
-	if l.tail == node {
-		l.tail = node.prev
-		if l.circular {
+		if l.double && l.circular {
 			l.head.prev = l.tail
-			l.tail.next = l.head
-		} else {
-			l.tail.next = nil
 		}
+
 		l.len -= 1
 		return
 	}
@@ -348,7 +259,9 @@ func (l *LinkedList[T]) removeDoublyNode(node *Node[T]) {
 	for cur.next != nil {
 		if cur.next == node {
 			cur.next = node.next
-			cur.next.prev = cur
+			if l.circular && l.double {
+				cur.next.prev = cur
+			}
 			l.len -= 1
 			return
 		}

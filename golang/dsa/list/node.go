@@ -37,9 +37,9 @@ func (n *Node[T]) Print() {
 	fmt.Printf("NODE: Value %v next %v prev %v\n", n.Value, next, prev)
 }
 
-type ExtractFn[T any, E comparable] func(node *Node[T]) E
+type extractFn[T any, E comparable] func(node *Node[T]) E
 
-func FindNodeByValue[T any, E comparable](l *LinkedList[T], target E, fn ExtractFn[T, E]) *Node[T] {
+func FindNodeByValue[T any, E comparable](l *LinkedList[T], target E, fn extractFn[T, E]) *Node[T] {
 	if l.head == nil {
 		return nil
 	}
