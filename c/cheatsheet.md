@@ -76,3 +76,41 @@ int main() {
     return 0;
 }
 ```
+
+## Data types
+
+Integer types:
+
+- `char`: 1 byte, stores single characters or small integers (-128 to 127)
+- `int`: typically 4 bytes, general-purpose integers
+- `short`: typically 2 bytes, smaller range integers
+- `long`: typically 8 bytes, larger range integers
+- `long long`: at least 8 bytes, very large integers
+- `void`: no type
+
+Floating-point types:
+
+- `float`: 4 bytes, single-precision decimal numbers (6-7 digits precision)
+- `double`: 8 bytes, double-precision decimal numbers (15-17 digits precision)
+- `long double`: extended precision (varies by system)
+
+Modifiers:
+
+- `unsigned`: makes integer types only positive, doubles positive range
+- `signed`: explicitly signed (default for most types)
+
+## Format specifiers
+
+https://en.wikipedia.org/wiki/C_data_types#Basic_types
+
+- char, signed char, unsigned char: `%c`
+- short, short int, signed short, signed short int: `%hi` or `%hd`
+- unsigned short, unsigned short int: `%hu`
+- int, signed, signed int: `%i` or `%d`
+- unsigned, unsigned int: `%u`
+- long, long int, signed long, signed long int: `%li` or `%ld`
+- unsigned long, unsigned long int: `%lu`
+- long long, long long int, signed long long, signed long long int: `%lli` or `%lld`
+- unsigned long long, unsigned long long int: `%llu`
+- float: `%f` `%g` `%e` `%a` or `%F` `%G` `%E` `%A
+- double: `%lf` `%lg` `%le` `%la` or `%lF` `%lG` `%lE` `%lA`
