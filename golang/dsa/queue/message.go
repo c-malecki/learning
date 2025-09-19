@@ -1,6 +1,7 @@
 package queue
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -8,15 +9,16 @@ import (
 )
 
 type MessageQueue struct {
-	list *list.LinkedList[Message]
-	max  int
-	lock sync.Mutex
+	list         *list.LinkedList[Message]
+	messageTypes map[string]struct{}
+	max          int
+	lock         sync.Mutex
 }
 
 type Header struct {
-	MessageID   int
-	MessageType string
-	CreatedAt   time.Time
+	ID        int
+	Type      string
+	CreatedAt time.Time
 }
 
 type Message struct {
@@ -24,38 +26,46 @@ type Message struct {
 	Payload interface{}
 }
 
-func NewMessageQueue(max int) *MessageQueue {
+func NewMessageQueue(messageTypes map[string]struct{}, max int) *MessageQueue {
 	m := 0
 	if max != 0 {
 		m = max
 	}
 	return &MessageQueue{
-		list: list.New[Message](),
-		max:  m,
+		list:         list.New[Message](),
+		messageTypes: messageTypes,
+		max:          m,
 	}
 }
 
-func (q *MessageQueue) Enqueue(msg Message) *list.Node[Message] {
+func (q *MessageQueue) Enqueue(msg Message) (*list.Node[Message], error) {
 	q.lock.Lock()
 	defer q.lock.Unlock()
+
+	if _, ok := q.messageTypes[msg.Header.Type]; !ok {
+		return nil, fmt.Errorf("%s is not a valid message type", msg.Header.Type)
+	}
+
 	if q.max != 0 && q.list.Size() == q.max {
 		// handle overflow
-		return nil
+		return nil, fmt.Errorf("query is full")
 	}
+
 	node := q.list.AppendValue(msg)
-	return node
+
+	return node, nil
 }
 
-func (q *MessageQueue) Dequeue() *list.Node[Message] {
+func (q *MessageQueue) Dequeue() (*Message, error) {
 	q.lock.Lock()
 	defer q.lock.Unlock()
-	front := q.list.Front()
-	switch front.Value.Header.MessageType {
-	case "one":
-	case "two":
-	default:
+
+	if q.list.Size() == 0 {
+		return nil, fmt.Errorf("queue is empty")
 	}
-	// do stuff
-	q.list.Remove(front)
-	return front
+
+	node := q.list.Front()
+	msg := q.list.Remove(node)
+
+	return &msg, nil
 }

@@ -2,6 +2,8 @@ package list
 
 import "fmt"
 
+// todo: clean up or possibly just split into different lists to remove conditional logic
+
 type LinkedList[T any] struct {
 	head     *Node[T]
 	tail     *Node[T]
@@ -228,13 +230,13 @@ func (l *LinkedList[T]) Prepend(node *Node[T]) *Node[T] {
 	return node
 }
 
-func (l *LinkedList[T]) Remove(node *Node[T]) {
+func (l *LinkedList[T]) Remove(node *Node[T]) T {
 	if l.head == node {
 		if l.len == 1 {
 			l.head = nil
 			l.tail = nil
 			l.len = 0
-			return
+			return node.Value
 		}
 
 		l.head = node.next
@@ -247,7 +249,7 @@ func (l *LinkedList[T]) Remove(node *Node[T]) {
 		}
 
 		l.len -= 1
-		return
+		return node.Value
 	}
 
 	cur := l.head
@@ -261,10 +263,12 @@ func (l *LinkedList[T]) Remove(node *Node[T]) {
 				l.tail = cur
 			}
 			l.len -= 1
-			return
+			break
 		}
 		cur = cur.next
 	}
+
+	return node.Value
 }
 
 func (l *LinkedList[T]) MoveToFront(node *Node[T]) {
