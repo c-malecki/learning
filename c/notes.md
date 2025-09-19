@@ -729,6 +729,11 @@ theInt, *((char*)&theInt+0), *((char*)&theInt+1), *((char*)&theInt+2), *((char*)
 
 printf("The int is %i\nThe bytes are [%i, %i, %i, %i]\n",
     theInt, ((char*)&theInt)[0], ((char*)&theInt)[1], ((char*)&theInt)[2], ((char*)&theInt)[3]);
+
+/*
+  The int is 5968145
+  The bytes are [17, 17, 91, 0]
+*/
 ```
 
 Combining this with a structure allows you to create a "tagged" union which can be used to store multiple different types, one at a time.

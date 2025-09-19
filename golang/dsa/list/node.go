@@ -1,6 +1,8 @@
 package list
 
-import "fmt"
+import (
+	"fmt"
+)
 
 type Node[T any] struct {
 	Value T
@@ -26,15 +28,27 @@ func (n *Node[T]) Prev() *Node[T] {
 	return nil
 }
 
-func (n *Node[T]) Print() {
-	var next, prev T
+func (n *Node[T]) PrintNode() {
+	var next, prev *T
 	if n.next != nil {
-		next = n.next.Value
+		next = &n.next.Value
 	}
 	if n.prev != nil {
-		prev = n.prev.Value
+		prev = &n.prev.Value
 	}
-	fmt.Printf("NODE: Value %v next %v prev %v\n", n.Value, next, prev)
+	place := "NODE"
+	if n == n.list.head {
+		place = "HEAD"
+	}
+	if n == n.list.tail {
+		place = "TAIL"
+	}
+
+	if n.list.double {
+		fmt.Printf("%s: Value %v next %v prev %v\n", place, n.Value, next, prev)
+	} else {
+		fmt.Printf("%s: Value %v next %v\n", place, n.Value, next)
+	}
 }
 
 type extractFn[T any, E comparable] func(node *Node[T]) E
@@ -48,7 +62,7 @@ func FindNodeByValue[T any, E comparable](l *LinkedList[T], target E, fn extract
 		return l.head
 	}
 
-	if l.double && fn(l.tail) == target {
+	if fn(l.tail) == target {
 		return l.tail
 	}
 
