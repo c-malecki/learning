@@ -1,71 +1,35 @@
 package queue
 
 import (
-	"fmt"
-	"sync"
 	"time"
 
-	"github.com/c-malecki/learning/dsa/list"
+	"github.com/google/uuid"
 )
 
-type MessageQueue struct {
-	list         *list.LinkedList[Message]
-	messageTypes map[string]struct{}
-	max          int
-	lock         sync.Mutex
+type MessageQueue[T any] struct {
+	queue *Queue[T]
 }
 
-type Header struct {
-	ID        int
-	Type      string
-	CreatedAt time.Time
-}
-
-type Message struct {
-	Header  Header
-	Payload interface{}
-}
-
-func NewMessageQueue(messageTypes map[string]struct{}, max int) *MessageQueue {
-	m := 0
-	if max != 0 {
-		m = max
-	}
-	return &MessageQueue{
-		list:         list.New[Message](),
-		messageTypes: messageTypes,
-		max:          m,
+func NewMessageQueue[T any](max int) *MessageQueue[T] {
+	return &MessageQueue[T]{
+		queue: NewQueue[T](max),
 	}
 }
 
-func (q *MessageQueue) Enqueue(msg Message) (*list.Node[Message], error) {
-	q.lock.Lock()
-	defer q.lock.Unlock()
-
-	if _, ok := q.messageTypes[msg.Header.Type]; !ok {
-		return nil, fmt.Errorf("%s is not a valid message type", msg.Header.Type)
+func (q *MessageQueue[T]) Send(msgType string, payload T) error {
+	item := QueueItem[T]{
+		Header: Header{
+			ID:        uuid.New(),
+			Type:      msgType,
+			CreatedAt: time.Now(),
+		},
+		Payload: &payload,
 	}
 
-	if q.max != 0 && q.list.Size() == q.max {
-		// handle overflow
-		return nil, fmt.Errorf("query is full")
-	}
-
-	node := q.list.AppendValue(msg)
-
-	return node, nil
+	_, err := q.queue.Enqueue(item)
+	return err
 }
 
-func (q *MessageQueue) Dequeue() (*Message, error) {
-	q.lock.Lock()
-	defer q.lock.Unlock()
-
-	if q.list.Size() == 0 {
-		return nil, fmt.Errorf("queue is empty")
-	}
-
-	node := q.list.Front()
-	msg := q.list.Remove(node)
-
-	return &msg, nil
+func (q *MessageQueue[T]) Receive() (*QueueItem[T], error) {
+	return q.queue.Dequeue()
 }

@@ -5,86 +5,36 @@ import (
 	"testing"
 )
 
-func checkInvalidJobType(t *testing.T) {
+func TestJobQueue(t *testing.T) {
 	q := NewJobQueue(
-		map[string]execFn{
-			"valid": func(m Job) error {
-				return nil
-			},
-		}, 0)
-
-	job := Job{
-		Header: Header{Type: "invalid"},
-	}
-
-	_, err := q.Enqueue(job)
-	if err == nil {
-		t.Error("expected error for invalid job type")
-	}
-}
-
-func checkJobQueueMax(t *testing.T) {
-	q := NewJobQueue(
-		map[string]execFn{
-			"valid": func(m Job) error {
-				return nil
+		map[string]jobExecFn[QueueItem[tStruct]]{
+			"valid": func(item *QueueItem[tStruct]) error {
+				return fmt.Errorf("failed")
 			},
 		}, 1)
 
-	job := Job{
-		Header: Header{
-			Type: "valid",
-		},
-	}
-
-	_, err := q.Enqueue(job)
-	if err != nil {
-		t.Fatal("failed to enqueue job")
-	}
-
-	_, err = q.Enqueue(job)
+	err := q.Submit("invalid", tStruct{Value: 1})
 	if err == nil {
-		t.Error("expected error when queue is full")
-	}
-}
-
-func checkJobExec(t *testing.T) {
-	q := NewJobQueue(
-		map[string]execFn{
-			"valid": func(m Job) error {
-				return fmt.Errorf("failed")
-			},
-		}, 0)
-
-	job := Job{
-		Header: Header{
-			Type: "valid",
-		},
+		t.Error("expected error for invalid job type")
 	}
 
-	_, err := q.Enqueue(job)
+	err = q.Submit("valid", tStruct{Value: 1})
 	if err != nil {
-		t.Fatal("failed to enqueue job")
+		t.Fatal("failed to submit job")
 	}
 
-	_, err = q.Dequeue()
+	err = q.Submit("valid", tStruct{Value: 1})
+	if err == nil {
+		t.Error("expected error when job queue is full")
+	}
+
+	_, err = q.ProcessNext()
 	if err == nil {
 		t.Error("expected error for exec func")
 	}
-}
 
-func checkJobEmptyDequeue(t *testing.T) {
-	q := NewJobQueue(map[string]execFn{}, 0)
-
-	_, err := q.Dequeue()
+	_, err = q.ProcessNext()
 	if err == nil {
-		t.Error("expected error when dequeuing from empty queue")
+		t.Error("expected error when processing next job from empty queue")
 	}
-}
-
-func TestJobQueue(t *testing.T) {
-	checkInvalidJobType(t)
-	checkJobQueueMax(t)
-	checkJobExec(t)
-	checkJobEmptyDequeue(t)
 }

@@ -2,71 +2,53 @@ package queue
 
 import (
 	"fmt"
-	"sync"
+	"time"
 
-	"github.com/c-malecki/learning/dsa/list"
+	"github.com/google/uuid"
 )
 
-type execFn func(j Job) error
+type jobExecFn[T any] func(item *T) error
 
-type JobQueue struct {
-	list     *list.LinkedList[Job]
-	jobTypes map[string]execFn
-	max      int
-	lock     sync.Mutex
+type JobQueue[T any] struct {
+	queue *Queue[T]
+	types map[string]jobExecFn[QueueItem[T]]
 }
 
-type Job struct {
-	Header  Header
-	Payload interface{}
-}
-
-func NewJobQueue(jobTypes map[string]execFn, max int) *JobQueue {
-	m := 0
-	if max != 0 {
-		m = max
-	}
-	return &JobQueue{
-		list:     list.New[Job](),
-		jobTypes: jobTypes,
-		max:      m,
+func NewJobQueue[T any](types map[string]jobExecFn[QueueItem[T]], max int) *JobQueue[T] {
+	return &JobQueue[T]{
+		queue: NewQueue[T](max),
+		types: types,
 	}
 }
 
-func (q *JobQueue) Enqueue(job Job) (*list.Node[Job], error) {
-	q.lock.Lock()
-	defer q.lock.Unlock()
-
-	if _, ok := q.jobTypes[job.Header.Type]; !ok {
-		return nil, fmt.Errorf("%s is not a valid job type", job.Header.Type)
+func (q *JobQueue[T]) Submit(jobType string, payload T) error {
+	if _, ok := q.types[jobType]; !ok {
+		return fmt.Errorf("%s is not a valid job type", jobType)
 	}
 
-	if q.max != 0 && q.list.Size() == q.max {
-		// handle overflow
-		return nil, fmt.Errorf("query is full")
+	item := QueueItem[T]{
+		Header: Header{
+			ID:        uuid.New(),
+			Type:      jobType,
+			CreatedAt: time.Now(),
+		},
+		Payload: &payload,
 	}
 
-	node := q.list.AppendValue(job)
-
-	return node, nil
+	_, err := q.queue.Enqueue(item)
+	return err
 }
 
-func (q *JobQueue) Dequeue() (*Job, error) {
-	q.lock.Lock()
-	defer q.lock.Unlock()
-
-	if q.list.Size() == 0 {
-		return nil, fmt.Errorf("queue is empty")
-	}
-
-	node := q.list.Front()
-	exec := q.jobTypes[node.Value.Header.Type]
-
-	if err := exec(node.Value); err != nil {
+func (q *JobQueue[T]) ProcessNext() (*T, error) {
+	item, err := q.queue.Dequeue()
+	if err != nil {
 		return nil, err
 	}
 
-	job := q.list.Remove(node)
+	exec := q.types[item.Header.Type]
+	if err := exec(item); err != nil {
+		return nil, fmt.Errorf("exec for job %s failed: %w", item.Header.ID, err)
+	}
 
-	return &job, nil
+	return item.Payload, nil
 }
